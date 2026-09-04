@@ -1,25 +1,35 @@
+import 'dotenv/config';
 import fs from 'fs';
-import { synthesize } from './tts.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { textToSpeech } from './tts.js';
 
-const testCases = JSON.parse(fs.readFileSync('./evidence/test-strings.json', 'utf-8'));
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const testStrings = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', 'evidence', 'test-strings.json'), 'utf-8')
+);
 
-async function run() {
-  for (const { id, naive, controlled } of testCases) {
-    console.log(`Generating: ${id}`);
-    await synthesize(naive, { outPath: `./evidence/naive/${id}.wav` });
-    await synthesize(controlled, { outPath: `./evidence/controlled/${id}.wav` });
+async function main() {
+  const normalDir = path.join(__dirname, '..', 'evidence', 'normal');
+  const slowDir = path.join(__dirname, '..', 'evidence', 'slow');
+  fs.mkdirSync(normalDir, { recursive: true });
+  fs.mkdirSync(slowDir, { recursive: true });
+
+  for (const item of testStrings) {
+    console.log('Generating:', item.id);
+
+    const normalAudio = await textToSpeech(item.phrase, {
+      speaker: 'celeste', modelId: 'coda', language: 'en', timeScaleFactor: 1.0
+    });
+    fs.writeFileSync(path.join(normalDir, item.id + '.wav'), normalAudio);
+
+    const slowAudio = await textToSpeech(item.phrase, {
+      speaker: 'celeste', modelId: 'coda', language: 'en', timeScaleFactor: 1.6
+    });
+    fs.writeFileSync(path.join(slowDir, item.id + '.wav'), slowAudio);
   }
-  console.log('Done. Listen to /evidence/naive vs /evidence/controlled to compare.');
+
+  console.log('Done. Clips saved in evidence/normal and evidence/slow');
 }
 
-run().catch(console.error);
-This regenerates all naive/controlled audio pairs in `evidence/naive/` and `evidence/controlled/`.
-
-## Known Limitations
-- Order data is hardcoded (single demo order `4471`) — a production version would connect to a real order database
-- No speech-to-text input yet; text input only, spoken output only
-- No fallback TTS provider configured — Rime is the sole speech provider in this build
-- Not tested under adverse network/telephony conditions
-
-## Third-Party Services
-- Rime (text-to-speech, primary and only speech provider)
+main().catch(console.error);

@@ -1,32 +1,177 @@
 <!DOCTYPE html>
 <html>
-<head><title>Voice Order Assistant</title></head>
+<head><title>Voice Pronunciation Tutor</title></head>
 <body style="font-family: sans-serif; max-width: 500px; margin: 60px auto;">
-  <h2>Track Your Order (by voice)</h2>
-  <input id="orderNum" placeholder="Order number, e.g. 4471" />
-  <button onclick="trackOrder()">Track</button>
-  <div id="status"></div>
-  <audio id="player" controls style="margin-top: 20px; width: 100%;"></audio>
+  <h2>Voice Pronunciation Tutor</h2>
+  <p style="color:#555;">Tap the mic and say: <em>"Teach me refrigerator"</em> or <em>"Teach me unicorn"</em>. Tap anytime to interrupt.</p>
+
+  <button id="micBtn" style="font-size:18px; padding:12px 24px; cursor:pointer;">🎤 Start</button>
+  <button id="stopModeBtn" style="font-size:14px; padding:10px 16px; cursor:pointer; margin-left:8px;">⏹ End session</button>
+
+  <p id="stateLabel" style="font-weight:bold; color:#0066cc;"></p>
+  <p id="transcript" style="min-height:24px; font-style:italic; color:#333;"></p>
+  <div id="status" style="min-height:24px;"></div>
+  <p id="phraseLabel" style="font-weight:bold;"></p>
+  <p id="latency" style="font-weight:bold; color:#0a7a2a;"></p>
+
+  <audio id="player" style="margin-top: 20px; width: 100%;"></audio>
 
   <script>
-    async function trackOrder() {
-      const orderNumber = document.getElementById('orderNum').value;
-      document.getElementById('status').innerText = 'Loading...';
-      const res = await fetch('/api/speak-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderNumber })
-      });
-      if (!res.ok) {
-        document.getElementById('status').innerText = 'Order not found.';
+    const micBtn = document.getElementById('micBtn');
+    const stopModeBtn = document.getElementById('stopModeBtn');
+    const stateLabel = document.getElementById('stateLabel');
+    const transcriptEl = document.getElementById('transcript');
+    const statusEl = document.getElementById('status');
+    const phraseLabel = document.getElementById('phraseLabel');
+    const latencyEl = document.getElementById('latency');
+    const player = document.getElementById('player');
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) statusEl.innerText = 'Speech recognition not supported. Use Chrome or Edge.';
+    const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+    if (recognition) { recognition.continuous = false; recognition.interimResults = false; recognition.lang = 'en-US'; }
+
+    let appState = 'idle'; // idle | listening | thinking | speaking
+    let conversationActive = false;
+    let currentRequestId = 0;
+    let activeAbortController = null;
+    let speechEndTime = null;
+
+    function setState(next) {
+      appState = next;
+      stateLabel.innerText = { idle:'', listening:'🎤 Listening...', thinking:'⏳ Thinking...', speaking:'🔊 Speaking...' }[next] || '';
+    }
+
+    function stopEverythingForNewTurn() {
+      player.pause();
+      player.currentTime = 0;
+      if (activeAbortController) { activeAbortController.abort(); activeAbortController = null; }
+      currentRequestId += 1;
+    }
+
+    function startListening() {
+      if (!recognition) return;
+      conversationActive = true;
+      transcriptEl.innerText = '';
+      latencyEl.innerText = '';
+      statusEl.innerText = '';
+      phraseLabel.innerText = '';
+      setState('listening');
+      try { recognition.start(); } catch (e) {}
+    }
+
+    micBtn.addEventListener('click', () => { stopEverythingForNewTurn(); startListening(); });
+
+    stopModeBtn.addEventListener('click', () => {
+      stopEverythingForNewTurn();
+      conversationActive = false;
+      if (recognition) { try { recognition.stop(); } catch (e) {} }
+      setState('idle');
+      statusEl.innerText = 'Session ended.';
+    });
+
+    recognition && recognition.addEventListener('result', async (event) => {
+      const said = event.results[0][0].transcript;
+      transcriptEl.innerText = '"' + said + '"';
+      speechEndTime = performance.now();
+      await handleQuery(said);
+    });
+
+    recognition && recognition.addEventListener('end', () => {
+      if (appState === 'listening') setState('idle');
+    });
+
+    recognition && recognition.addEventListener('error', (e) => {
+      setState('idle');
+      statusEl.innerText = 'Mic error: ' + e.error + '.';
+    });
+
+    async function handleQuery(spokenText) {
+      setState('thinking');
+      statusEl.innerText = 'Finding phrase...';
+
+      const myRequestId = currentRequestId;
+      const controller = new AbortController();
+      activeAbortController = controller;
+
+      let resolveRes;
+      try {
+        resolveRes = await fetch('/api/resolve-phrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spokenText }),
+          signal: controller.signal
+        });
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        statusEl.innerText = 'Request failed.';
+        setState('idle');
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const player = document.getElementById('player');
-      player.src = url;
-      player.play();
-      document.getElementById('status').innerText = 'Playing response...';
+
+      if (myRequestId !== currentRequestId) return;
+
+      if (!resolveRes.ok) {
+        statusEl.innerText = "Didn't recognize that phrase — try again.";
+        setState('idle');
+        if (conversationActive) startListening();
+        return;
+      }
+
+      const { phraseKey, english } = await resolveRes.json();
+      if (myRequestId !== currentRequestId) return;
+
+      phraseLabel.innerText = 'Practicing: ' + english;
+
+      await playSpeed(phraseKey, 'normal', 'Normal speed', myRequestId);
+      if (myRequestId !== currentRequestId) return;
+
+      await playSpeed(phraseKey, 'slow', 'Slow practice speed', myRequestId);
+      if (myRequestId !== currentRequestId) return;
+
+      setState('idle');
+      statusEl.innerText = 'Done. Tap mic to practice another word.';
+      if (conversationActive) startListening();
+    }
+
+    function playSpeed(phraseKey, speed, label, myRequestId) {
+      return new Promise(async (resolve) => {
+        statusEl.innerText = label + '...';
+
+        let res;
+        try {
+          res = await fetch('/api/speak-phrase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phraseKey, speed })
+          });
+        } catch (err) {
+          resolve();
+          return;
+        }
+
+        if (myRequestId !== currentRequestId) { resolve(); return; }
+        if (!res.ok) { statusEl.innerText = 'Playback failed.'; resolve(); return; }
+
+        const blob = await res.blob();
+        if (myRequestId !== currentRequestId) { resolve(); return; }
+
+        const url = URL.createObjectURL(blob);
+        player.src = url;
+
+        player.onplaying = () => {
+          if (myRequestId !== currentRequestId) { player.pause(); return; }
+          setState('speaking');
+          statusEl.innerText = label;
+          if (speed === 'normal' && speechEndTime !== null) {
+            const lagMs = Math.round(performance.now() - speechEndTime);
+            latencyEl.innerText = 'Response time: ' + lagMs + ' ms (speech end → audio start)';
+          }
+        };
+
+        player.onended = () => resolve();
+        player.play();
+      });
     }
   </script>
 </body>

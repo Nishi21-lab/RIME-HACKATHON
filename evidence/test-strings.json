@@ -1,7 +1,8 @@
 [
-  { "id": "order_id", "naive": "Your order number is AB4471Z.", "controlled": "Your order number is A, B, 4, 4, 7, 1, Z." },
-  { "id": "phone", "naive": "Call us at 8887324551.", "controlled": "Call us at 888, 732, 4551." },
-  { "id": "address", "naive": "Deliver to 221B Baker Street.", "controlled": "Deliver to 221 B, Baker Street." },
-  { "id": "drug_name", "naive": "Take Levothyroxine daily.", "controlled": "Take Levo-thy-roxine daily." },
-  { "id": "confirmation_code", "naive": "Your code is 9X7K2.", "controlled": "Your code is 9, X, 7, K, 2." }
+  { "id": "butterfly", "phrase": "Butterfly" },
+  { "id": "spaghetti", "phrase": "Spaghetti" },
+  { "id": "refrigerator", "phrase": "Refrigerator" },
+  { "id": "unicorn", "phrase": "Unicorn" },
+  { "id": "chocolate", "phrase": "Chocolate" },
+  { "id": "peculiar", "phrase": "Peculiar" }
 ]
