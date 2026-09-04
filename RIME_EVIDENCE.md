@@ -1,34 +1,41 @@
-# Rime Evidence: Pronunciation and Controlled Delivery
+# Rime Evidence: Pronunciation Clarity via Speed Control
 
 ## Hard Voice Claim
-Naive, unformatted identifiers (order numbers, phone numbers, addresses, drug names, confirmation codes) are harder to understand when spoken by TTS than the same identifiers reformatted for clear, character-by-character delivery.
+The same word or phrase, rendered by Rime at a slower speed (`timeScaleFactor: 1.6`), gives noticeably clearer syllable-by-syllable separation than the identical phrase at normal speed (`timeScaleFactor: 1.0`) — making it more useful as a pronunciation model for a learner practicing a new or difficult word.
 
 ## Acceptance Test
-For 5 representative tricky strings, generate two Rime TTS outputs per string:
-1. **Naive** — the identifier written as a normal string (e.g. "AB4471Z")
-2. **Controlled** — the identifier reformatted with explicit separation (e.g. "A, B, 4, 4, 7, 1, Z")
+For 6 representative words/phrases of varying difficulty, generate two Rime TTS outputs per item:
+1. **Normal** — `timeScaleFactor: 1.0`
+2. **Slow** — `timeScaleFactor: 1.6`
 
-Model and speaker held constant across both versions (`coda` / `celeste`) to isolate the effect of text formatting alone.
+Voice, model, and language held constant across both versions (`celeste` / `coda` / `en`) to isolate the effect of speed alone.
 
 ## Procedure
-1. Test strings defined in `evidence/test-strings.json`
+1. Test phrases defined in `evidence/test-strings.json`
 2. Run `node src/generate-evidence.js`
-3. Both naive and controlled audio are generated using identical Rime model/speaker settings
+3. Both normal and slow audio are generated using identical Rime voice/model settings, differing only in `timeScaleFactor`
 4. Listen to each pair back-to-back
 
 ## Test Cases
-| ID | Naive Text | Controlled Text |
-|---|---|---|
-| order_id | "Your order number is AB4471Z." | "Your order number is A, B, 4, 4, 7, 1, Z." |
-| phone | "Call us at 8887324551." | "Call us at 888, 732, 4551." |
-| address | "Deliver to 221B Baker Street." | "Deliver to 221 B, Baker Street." |
-| drug_name | "Take Levothyroxine daily." | "Take Levo-thy-roxine daily." |
-| confirmation_code | "Your code is 9X7K2." | "Your code is 9, X, 7, K, 2." |
+| ID | Phrase | Normal `timeScaleFactor` | Slow `timeScaleFactor` |
+|---|---|---|---|
+| butterfly | "Butterfly" | 1.0 | 1.6 |
+| spaghetti | "Spaghetti" | 1.0 | 1.6 |
+| refrigerator | "Refrigerator" | 1.0 | 1.6 |
+| unicorn | "Unicorn" | 1.0 | 1.6 |
+| chocolate | "Chocolate" | 1.0 | 1.6 |
+| peculiar | "Peculiar" | 1.0 | 1.6 |
 
 ## Result
-Across all 5 test cases, the controlled versions produced noticeably clearer, more intelligible spoken output than the naive versions, particularly for the order ID, phone number, and confirmation code cases where digit/letter sequences were run together and harder to parse in the naive version. Audio clips for both versions are committed in `evidence/naive/` and `evidence/controlled/` for direct comparison.
+Across all 6 test cases, the slow-speed versions produced audibly more distinct syllable boundaries than the normal-speed versions, most noticeably on the higher-syllable-count words (`refrigerator`, `peculiar`) where syllables blend together more at normal speed. Audio clips for both versions are committed in `evidence/normal/` and `evidence/slow/` for direct comparison.
+
+## Interruption and Recovery — Supplementary Evidence
+In addition to the speed-control claim above, the product also handles mid-playback interruption:
+- Tapping the mic while audio is playing immediately pauses playback and aborts the in-flight fetch to Rime via `AbortController`.
+- A per-turn request ID ("fencing" token) ensures that if a new request has started, any late-arriving audio from the previous (interrupted) request is discarded rather than played — verified by manually interrupting mid-sentence and confirming the old audio never resumes or plays after the interruption.
 
 ## Limitations
-- Evaluation was subjective/listening-based rather than using an automated intelligibility metric (e.g. word error rate via re-transcription)
-- Small sample size (5 cases) — findings should be treated as illustrative rather than statistically rigorous
-- Did not test Rime's custom pronunciation bracket feature (`phonemizeBetweenBrackets`) as an alternative approach — noted as a possible extension
+- Evaluation of speed-clarity was subjective/listening-based rather than using an automated intelligibility metric (e.g. word error rate via re-transcription).
+- Small sample size (6 items) — findings should be treated as illustrative rather than statistically rigorous.
+- `timeScaleFactor` of 1.6 was chosen empirically as a "clearly slower but still natural-sounding" value; other values were not systematically swept.
+- Interruption evidence is described qualitatively (manual test procedure) rather than via an automated regression test with logged timestamps.
