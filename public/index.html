@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head><title>Voice Order Assistant</title></head>
+<body style="font-family: sans-serif; max-width: 500px; margin: 60px auto;">
+  <h2>Track Your Order (by voice)</h2>
+  <input id="orderNum" placeholder="Order number, e.g. 4471" />
+  <button onclick="trackOrder()">Track</button>
+  <div id="status"></div>
+  <audio id="player" controls style="margin-top: 20px; width: 100%;"></audio>
+
+  <script>
+    async function trackOrder() {
+      const orderNumber = document.getElementById('orderNum').value;
+      document.getElementById('status').innerText = 'Loading...';
+      const res = await fetch('/api/speak-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderNumber })
+      });
+      if (!res.ok) {
+        document.getElementById('status').innerText = 'Order not found.';
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const player = document.getElementById('player');
+      player.src = url;
+      player.play();
+      document.getElementById('status').innerText = 'Playing response...';
+    }
+  </script>
+</body>
+</html>
