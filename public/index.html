@@ -1,23 +1,253 @@
 <!DOCTYPE html>
-<html>
-<head><title>Voice Pronunciation Tutor</title></head>
-<body style="font-family: sans-serif; max-width: 500px; margin: 60px auto;">
-  <h2>Voice Pronunciation Tutor</h2>
-  <p style="color:#555;">Tap the mic and say: <em>"Teach me refrigerator"</em> or <em>"Teach me unicorn"</em>. Tap anytime to interrupt.</p>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Say It — Voice Pronunciation Tutor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1B1035;
+    --surface: #26184A;
+    --surface-soft: #2F1E5C;
+    --text: #F3EEFF;
+    --text-dim: #B7A9DE;
+    --gold: #FFB800;
+    --coral: #FF6F61;
+    --mint: #4ADE80;
+  }
 
-  <button id="micBtn" style="font-size:18px; padding:12px 24px; cursor:pointer;">🎤 Start</button>
-  <button id="stopModeBtn" style="font-size:14px; padding:10px 16px; cursor:pointer; margin-left:8px;">⏹ End session</button>
+  * { box-sizing: border-box; }
 
-  <p id="stateLabel" style="font-weight:bold; color:#0066cc;"></p>
-  <p id="transcript" style="min-height:24px; font-style:italic; color:#333;"></p>
-  <div id="status" style="min-height:24px;"></div>
-  <p id="phraseLabel" style="font-weight:bold;"></p>
-  <p id="latency" style="font-weight:bold; color:#0a7a2a;"></p>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 20% -10%, #34215F 0%, transparent 55%),
+      radial-gradient(circle at 85% 10%, #2A1B54 0%, transparent 45%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 56px 20px 80px;
+  }
 
-  <audio id="player" style="margin-top: 20px; width: 100%;"></audio>
+  .page {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .eyebrow {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--gold);
+    margin: 0 0 6px;
+  }
+
+  h1 {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 800;
+    font-size: 40px;
+    line-height: 1.1;
+    margin: 0 0 14px;
+  }
+
+  .sub {
+    color: var(--text-dim);
+    font-size: 16px;
+    line-height: 1.55;
+    margin: 0 0 40px;
+    max-width: 42ch;
+  }
+
+  .sub em {
+    color: var(--text);
+    font-style: normal;
+    font-weight: 600;
+  }
+
+  /* --- The mic: the hero of the page --- */
+  .mic-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 8px 0 36px;
+  }
+
+  .mic-ring {
+    position: relative;
+    width: 168px;
+    height: 168px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mic-pulse {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--gold);
+    opacity: 0;
+    transform: scale(1);
+  }
+
+  .mic-ring.listening .mic-pulse {
+    animation: pulse 1.6s ease-out infinite;
+  }
+
+  @keyframes pulse {
+    0%   { opacity: 0.35; transform: scale(0.9); }
+    70%  { opacity: 0; transform: scale(1.55); }
+    100% { opacity: 0; transform: scale(1.55); }
+  }
+
+  .mic-btn {
+    position: relative;
+    width: 132px;
+    height: 132px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(160deg, #FFCB3D, var(--gold));
+    box-shadow: 0 10px 30px rgba(255, 184, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 46px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .mic-btn:hover { transform: translateY(-2px); }
+  .mic-btn:active { transform: scale(0.96); }
+
+  .mic-ring.speaking .mic-btn {
+    background: linear-gradient(160deg, #FF8A7E, var(--coral));
+    box-shadow: 0 10px 30px rgba(255, 111, 97, 0.4);
+  }
+
+  .mic-caption {
+    margin-top: 18px;
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+  }
+
+  .mic-caption.idle { color: var(--text-dim); }
+  .mic-caption.listening { color: var(--gold); }
+  .mic-caption.thinking { color: var(--text-dim); }
+  .mic-caption.speaking { color: var(--coral); }
+
+  /* --- Result area --- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--surface-soft);
+    border-radius: 20px;
+    padding: 22px 24px;
+    margin-bottom: 14px;
+  }
+
+  .transcript {
+    font-style: italic;
+    color: var(--text-dim);
+    font-size: 15px;
+    min-height: 22px;
+  }
+
+  .phrase-name {
+    font-family: 'Baloo 2', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    margin: 6px 0 0;
+    min-height: 28px;
+  }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    min-height: 20px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mint);
+    flex-shrink: 0;
+  }
+
+  .status-text {
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+
+  .latency {
+    font-size: 13px;
+    color: var(--mint);
+    margin-top: 10px;
+    font-weight: 500;
+  }
+
+  .end-link {
+    display: inline-block;
+    margin-top: 6px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 14px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .end-link:hover { color: var(--text); }
+
+  audio { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mic-ring.listening .mic-pulse { animation: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <p class="eyebrow">Say It</p>
+    <h1>Learn to say the tricky ones.</h1>
+    <p class="sub">Tap the mic and ask, like <em>"teach me refrigerator"</em> or <em>"teach me unicorn."</em> It'll say the word out loud, then slow it right down so you can hear every part.</p>
+
+    <div class="mic-wrap">
+      <div class="mic-ring" id="micRing">
+        <div class="mic-pulse"></div>
+        <button class="mic-btn" id="micBtn">🎤</button>
+      </div>
+      <p class="mic-caption idle" id="stateLabel">Tap to talk</p>
+    </div>
+
+    <div class="card">
+      <p class="transcript" id="transcript"></p>
+      <p class="phrase-name" id="phraseLabel"></p>
+      <div class="status-row">
+        <div class="dot"></div>
+        <p class="status-text" id="status"></p>
+      </div>
+      <p class="latency" id="latency"></p>
+    </div>
+
+    <button class="end-link" id="stopModeBtn">End session</button>
+
+    <audio id="player"></audio>
+  </div>
 
   <script>
     const micBtn = document.getElementById('micBtn');
+    const micRing = document.getElementById('micRing');
     const stopModeBtn = document.getElementById('stopModeBtn');
     const stateLabel = document.getElementById('stateLabel');
     const transcriptEl = document.getElementById('transcript');
@@ -37,9 +267,13 @@
     let activeAbortController = null;
     let speechEndTime = null;
 
+    const CAPTIONS = { idle: 'Tap to talk', listening: 'Listening…', thinking: 'Thinking…', speaking: 'Speaking…' };
+
     function setState(next) {
       appState = next;
-      stateLabel.innerText = { idle:'', listening:'🎤 Listening...', thinking:'⏳ Thinking...', speaking:'🔊 Speaking...' }[next] || '';
+      stateLabel.innerText = CAPTIONS[next] || '';
+      stateLabel.className = 'mic-caption ' + next;
+      micRing.className = 'mic-ring ' + (next === 'listening' ? 'listening' : next === 'speaking' ? 'speaking' : '');
     }
 
     function stopEverythingForNewTurn() {
@@ -88,7 +322,7 @@
 
     async function handleQuery(spokenText) {
       setState('thinking');
-      statusEl.innerText = 'Finding phrase...';
+      statusEl.innerText = 'Finding phrase…';
 
       const myRequestId = currentRequestId;
       const controller = new AbortController();
@@ -112,7 +346,7 @@
       if (myRequestId !== currentRequestId) return;
 
       if (!resolveRes.ok) {
-        statusEl.innerText = "Didn't recognize that phrase — try again.";
+        statusEl.innerText = "Didn't catch that one — tap and try again.";
         setState('idle');
         if (conversationActive) startListening();
         return;
@@ -121,7 +355,7 @@
       const { phraseKey, english } = await resolveRes.json();
       if (myRequestId !== currentRequestId) return;
 
-      phraseLabel.innerText = 'Practicing: ' + english;
+      phraseLabel.innerText = english;
 
       await playSpeed(phraseKey, 'normal', 'Normal speed', myRequestId);
       if (myRequestId !== currentRequestId) return;
@@ -130,13 +364,13 @@
       if (myRequestId !== currentRequestId) return;
 
       setState('idle');
-      statusEl.innerText = 'Done. Tap mic to practice another word.';
+      statusEl.innerText = 'Tap to practice another word.';
       if (conversationActive) startListening();
     }
 
     function playSpeed(phraseKey, speed, label, myRequestId) {
       return new Promise(async (resolve) => {
-        statusEl.innerText = label + '...';
+        statusEl.innerText = label + '…';
 
         let res;
         try {
@@ -165,7 +399,7 @@
           statusEl.innerText = label;
           if (speed === 'normal' && speechEndTime !== null) {
             const lagMs = Math.round(performance.now() - speechEndTime);
-            latencyEl.innerText = 'Response time: ' + lagMs + ' ms (speech end → audio start)';
+            latencyEl.innerText = 'Response time: ' + lagMs + ' ms';
           }
         };
 
