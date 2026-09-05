@@ -1,0 +1,27 @@
+[
+  {
+    "id": "address",
+    "naive": "123 N Main St Apt 4B, Springfield IL 62704",
+    "controlled": "one two three North Main Street, Apartment four B, Springfield, Illinois, six two seven zero four"
+  },
+  {
+    "id": "confirmation_code",
+    "naive": "Your confirmation code is XJ4K9P2.",
+    "controlled": "Your confirmation code is X, J, four, K, nine, P, two."
+  },
+  {
+    "id": "drug_name",
+    "naive": "Take Levothyroxine twice daily.",
+    "controlled": "Take Lev-o-thy-rox-ine, twice daily."
+  },
+  {
+    "id": "order_id",
+    "naive": "Order ID 48291057.",
+    "controlled": "Order I D: four eight two nine one zero five seven."
+  },
+  {
+    "id": "phone",
+    "naive": "Call 555-234-8890.",
+    "controlled": "Call five five five, two three four, eight eight nine zero."
+  }
+]

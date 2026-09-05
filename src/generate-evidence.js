@@ -5,31 +5,49 @@ import { fileURLToPath } from 'url';
 import { textToSpeech } from './tts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const evidenceDir = path.join(__dirname, '..', 'evidence');
+
 const testStrings = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '..', 'evidence', 'test-strings.json'), 'utf-8')
+  fs.readFileSync(path.join(evidenceDir, 'test-strings.json'), 'utf-8')
+);
+const deliveryStrings = JSON.parse(
+  fs.readFileSync(path.join(evidenceDir, 'delivery-strings.json'), 'utf-8')
 );
 
-async function main() {
-  const normalDir = path.join(__dirname, '..', 'evidence', 'normal');
-  const slowDir = path.join(__dirname, '..', 'evidence', 'slow');
-  fs.mkdirSync(normalDir, { recursive: true });
-  fs.mkdirSync(slowDir, { recursive: true });
+function mkdir(p) { fs.mkdirSync(p, { recursive: true }); }
+
+async function generateSpeedPairs() {
+  const normalDir = path.join(evidenceDir, 'normal');
+  const slowDir = path.join(evidenceDir, 'slow');
+  mkdir(normalDir); mkdir(slowDir);
 
   for (const item of testStrings) {
-    console.log('Generating:', item.id);
-
-    const normalAudio = await textToSpeech(item.phrase, {
-      speaker: 'celeste', modelId: 'coda', language: 'en', timeScaleFactor: 1.0
-    });
-    fs.writeFileSync(path.join(normalDir, item.id + '.wav'), normalAudio);
-
-    const slowAudio = await textToSpeech(item.phrase, {
-      speaker: 'celeste', modelId: 'coda', language: 'en', timeScaleFactor: 1.6
-    });
-    fs.writeFileSync(path.join(slowDir, item.id + '.wav'), slowAudio);
+    console.log('Speed pair:', item.id);
+    const normal = await textToSpeech(item.phrase, { speaker: 'celeste', modelId: 'coda', language: 'en', timeScaleFactor: 1.0 });
+    fs.writeFileSync(path.join(normalDir, item.id + '.wav'), normal);
+    const slow = await textToSpeech(item.phrase, { speaker: 'celeste', modelId: 'coda', language: 'en', timeScaleFactor: 1.6 });
+    fs.writeFileSync(path.join(slowDir, item.id + '.wav'), slow);
   }
+}
 
-  console.log('Done. Clips saved in evidence/normal and evidence/slow');
+async function generateDeliveryPairs() {
+  const naiveDir = path.join(evidenceDir, 'naive');
+  const controlledDir = path.join(evidenceDir, 'controlled');
+  mkdir(naiveDir); mkdir(controlledDir);
+
+  for (const item of deliveryStrings) {
+    console.log('Delivery pair:', item.id);
+    const naive = await textToSpeech(item.naive, { speaker: 'celeste', modelId: 'coda', language: 'en', timeScaleFactor: 1.0 });
+    fs.writeFileSync(path.join(naiveDir, item.id + '.wav'), naive);
+    const controlled = await textToSpeech(item.controlled, { speaker: 'celeste', modelId: 'coda', language: 'en', timeScaleFactor: 1.0 });
+    fs.writeFileSync(path.join(controlledDir, item.id + '.wav'), controlled);
+  }
+}
+
+async function main() {
+  await generateSpeedPairs();
+  await generateDeliveryPairs();
+  console.log('Done. Clips saved in evidence/normal, evidence/slow, evidence/naive, evidence/controlled');
 }
 
 main().catch(console.error);

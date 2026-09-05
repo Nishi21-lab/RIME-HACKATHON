@@ -4,5 +4,10 @@
   { "id": "refrigerator", "phrase": "Refrigerator" },
   { "id": "unicorn", "phrase": "Unicorn" },
   { "id": "chocolate", "phrase": "Chocolate" },
-  { "id": "peculiar", "phrase": "Peculiar" }
+  { "id": "peculiar", "phrase": "Peculiar" },
+  { "id": "anesthesiologist", "phrase": "Anesthesiologist" },
+  { "id": "otorhino", "phrase": "Otorhinolaryngologist" },
+  { "id": "sixth_sheikh", "phrase": "The sixth sheikh's sixth sheep" },
+  { "id": "specificity", "phrase": "Specificity" },
+  { "id": "worcestershire", "phrase": "Worcestershire" }
 ]
