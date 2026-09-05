@@ -8,11 +8,13 @@ export async function textToSpeech(text, options = {}) {
     speaker = 'celeste',
     modelId = 'coda',
     language = 'en',
-    timeScaleFactor = 1.0
+    timeScaleFactor = 1.0,
+    signal
   } = options;
 
   const response = await fetch(RIME_ENDPOINT, {
     method: 'POST',
+    signal,
     headers: {
       'Authorization': `Bearer ${RIME_API_KEY}`,
       'Content-Type': 'application/json',

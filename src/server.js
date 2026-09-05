@@ -45,17 +45,26 @@ app.post('/api/speak-phrase', async (req, res) => {
   if (!data) return res.status(404).send('Phrase not found');
 
   const timeScaleFactor = speed === 'slow' ? 1.6 : 1.0;
+  const controller = new AbortController();
+
+  res.on('close', () => {
+    if (!res.writableEnded) {
+      controller.abort();
+    }
+  });
 
   try {
     const audioBuffer = await textToSpeech(data.phrase, {
       speaker: 'celeste',
       modelId: 'coda',
       language: 'en',
-      timeScaleFactor
+      timeScaleFactor,
+      signal: controller.signal
     });
     res.set('Content-Type', 'audio/wav');
     res.send(audioBuffer);
   } catch (err) {
+    if (err.name === 'AbortError') return;
     console.error(err);
     res.status(500).send('TTS generation failed');
   }

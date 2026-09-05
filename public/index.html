@@ -377,9 +377,11 @@
           res = await fetch('/api/speak-phrase', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phraseKey, speed })
+            body: JSON.stringify({ phraseKey, speed }),
+            signal: activeAbortController ? activeAbortController.signal : undefined
           });
         } catch (err) {
+          if (err.name === 'AbortError') { resolve(); return; }
           resolve();
           return;
         }
