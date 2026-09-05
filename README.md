@@ -13,7 +13,7 @@ Voice is not optional here — the only way the user receives a pronunciation mo
 ### 1. Pronunciation and controlled delivery via speed
 Some words are hard to parse at natural conversational speed, especially for a new learner. We solve this by rendering the same phrase twice — once at normal speed, once measurably slower — using Rime's `timeScaleFactor` parameter, holding voice and model constant so speed is the only variable.
 
-**Acceptance test:** For 6 representative tricky words/phrases, generate both a normal-speed and a slow-speed (`timeScaleFactor: 1.6`) version through Rime, and confirm the slow version gives clearer syllable-by-syllable separation. See `RIME_EVIDENCE.md` for full results.
+**Acceptance test:** For 11 representative tricky words/phrases, generate both a normal-speed and a slow-speed (`timeScaleFactor: 1.6`) version through Rime, and confirm the slow version gives clearer syllable-by-syllable separation. See `RIME_EVIDENCE.md` for full results.
 
 ### 2. Interruption and recovery
 If the user taps the mic while the app is still speaking (e.g. mid normal-speed or mid slow-speed playback), the app must stop immediately, discard the in-flight response, and start listening for the new request — without ever letting the stale audio play afterward. The abort now propagates all the way to the in-flight Rime request itself (via a server-side `AbortController` tied to the client connection), not just to local playback.
@@ -34,7 +34,7 @@ If the user taps the mic while the app is still speaking (e.g. mid normal-speed 
 - `src/tts.js` — Rime API wrapper (text + speed option → WAV audio), supports request cancellation via `AbortSignal`
 - `src/server.js` — Express backend; extracts the target word from spoken input and generates spoken responses via Rime at both speeds
 - `public/index.html` — frontend: voice input (browser Web Speech API), interrupt-and-recover conversational loop, latency display, audio playback
-- `src/generate-evidence.js` — generates normal vs. slow audio pairs for the acceptance test
+- `src/generate-evidence.js` — generates normal/slow and naive/controlled audio pairs for the acceptance tests
 - `evidence/` — generated proof clips and test data (`evidence/normal/`, `evidence/slow/`)
 
 ## Voice Input (Speech-to-Text)
@@ -49,7 +49,7 @@ Voice input uses the browser's native Web Speech API (`SpeechRecognition`), not 
 6. Tap "Start", allow microphone access, and say a phrase like "teach me refrigerator" or "teach me quokka" — any word works, not just a fixed list
 
 ## Reproducing the Evidence
-This regenerates all normal/slow audio pairs in `evidence/normal/` and `evidence/slow/` from `evidence/test-strings.json`.
+Run `npm run generate-evidence` to regenerate all four sets of audio (`evidence/normal/`, `evidence/slow/`, `evidence/naive/`, `evidence/controlled/`) from `evidence/test-strings.json` and `evidence/delivery-strings.json`.
 
 ## Known Limitations
 - Open vocabulary: any word or short phrase can be requested — there's no fixed catalog. Very long input (over ~60 characters after cleanup) is rejected server-side.
