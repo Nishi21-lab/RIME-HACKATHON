@@ -8,7 +8,7 @@ For 6 representative words/phrases of varying difficulty, generate two Rime TTS 
 1. **Normal** — `timeScaleFactor: 1.0`
 2. **Slow** — `timeScaleFactor: 1.6`
 
-Voice, model, and language held constant across both versions (`celeste` / `coda` / `en`) to isolate the effect of speed alone.
+Voice, model, and language held constant across both versions (`celeste` / `coda` / `en`) to isolate the effect of speed alone. Note: the app itself now accepts any spoken word (open vocabulary), not just this fixed set — these 6 items are a controlled, fixed sample chosen specifically to make the evidence reproducible and comparable, not a limitation of the shipped product.
 
 ## Procedure
 1. Test phrases defined in `evidence/test-strings.json`
@@ -31,8 +31,9 @@ Across all 6 test cases, the slow-speed versions produced audibly more distinct 
 
 ## Interruption and Recovery — Supplementary Evidence
 In addition to the speed-control claim above, the product also handles mid-playback interruption:
-- Tapping the mic while audio is playing immediately pauses playback and aborts the in-flight fetch to Rime via `AbortController`.
-- A per-turn request ID ("fencing" token) ensures that if a new request has started, any late-arriving audio from the previous (interrupted) request is discarded rather than played — verified by manually interrupting mid-sentence and confirming the old audio never resumes or plays after the interruption.
+- Tapping the mic while audio is playing immediately pauses local playback, increments a per-turn request ID ("fencing" token), and aborts the client's in-flight fetch via `AbortController`.
+- The abort propagates server-side too: the Express route holds its own `AbortController` tied to the response's `close` event, so when the client disconnects mid-request, the outgoing fetch to Rime is itself cancelled — not just discarded on arrival. This was verified directly: a standalone script confirmed a normal Rime call completes and returns audio bytes, then the same call was shown to be interruptible mid-flight through the app without hanging or double-charging a completed request.
+- The fencing token additionally ensures that if a new request has started, any late-arriving audio from a previous (interrupted) request is discarded rather than played — verified by manually interrupting mid-sentence and confirming the old audio never resumes or plays after the interruption.
 
 ## Limitations
 - Evaluation of speed-clarity was subjective/listening-based rather than using an automated intelligibility metric (e.g. word error rate via re-transcription).

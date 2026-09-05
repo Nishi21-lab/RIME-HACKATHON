@@ -9,52 +9,46 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-const PHRASES = {
-  butterfly: { english: 'Butterfly', phrase: 'Butterfly', keywords: ['butterfly'] },
-  spaghetti: { english: 'Spaghetti', phrase: 'Spaghetti', keywords: ['spaghetti'] },
-  refrigerator: { english: 'Refrigerator', phrase: 'Refrigerator', keywords: ['refrigerator', 'fridge'] },
-  unicorn: { english: 'Unicorn', phrase: 'Unicorn', keywords: ['unicorn'] },
-  chocolate: { english: 'Chocolate', phrase: 'Chocolate', keywords: ['chocolate'] },
-  peculiar: { english: 'Peculiar', phrase: 'Peculiar', keywords: ['peculiar'] }
-};
-
-function resolvePhrase(spokenText) {
-  const lower = spokenText.toLowerCase();
-  let bestKey = null;
-  let bestScore = 0;
-  for (const [key, data] of Object.entries(PHRASES)) {
-    let score = 0;
-    for (const kw of data.keywords) if (lower.includes(kw)) score += 1;
-    if (score > bestScore) { bestScore = score; bestKey = key; }
-  }
-  return bestScore > 0 ? bestKey : null;
+function extractWord(spokenText) {
+  let cleaned = spokenText.toLowerCase().trim();
+  const prefixes = [
+    /^teach me (?:how to say |to say )?/,
+    /^how do (?:you|i) say\s*/,
+    /^pronounce\s*/,
+    /^say\s*/,
+    /^what does\s*/
+  ];
+  for (const p of prefixes) cleaned = cleaned.replace(p, '');
+  cleaned = cleaned.replace(/[^a-z\s'-]/g, '').trim();
+  return cleaned;
 }
 
 app.post('/api/resolve-phrase', (req, res) => {
   const { spokenText } = req.body;
   if (!spokenText) return res.status(400).json({ error: 'spokenText required' });
-  const phraseKey = resolvePhrase(spokenText);
-  if (!phraseKey) return res.status(404).json({ error: 'No matching phrase found' });
-  const data = PHRASES[phraseKey];
-  res.json({ phraseKey, english: data.english });
+
+  const word = extractWord(spokenText);
+  if (!word) return res.status(404).json({ error: 'Could not find a word to teach' });
+  if (word.length > 60) return res.status(400).json({ error: 'That phrase is too long' });
+
+  const display = word.charAt(0).toUpperCase() + word.slice(1);
+  res.json({ phrase: display });
 });
 
 app.post('/api/speak-phrase', async (req, res) => {
-  const { phraseKey, speed } = req.body;
-  const data = PHRASES[phraseKey];
-  if (!data) return res.status(404).send('Phrase not found');
+  const { phrase, speed } = req.body;
+  if (!phrase || typeof phrase !== 'string' || phrase.length > 100) {
+    return res.status(400).send('Invalid phrase');
+  }
 
   const timeScaleFactor = speed === 'slow' ? 1.6 : 1.0;
   const controller = new AbortController();
-
   res.on('close', () => {
-    if (!res.writableEnded) {
-      controller.abort();
-    }
+    if (!res.writableEnded) controller.abort();
   });
 
   try {
-    const audioBuffer = await textToSpeech(data.phrase, {
+    const audioBuffer = await textToSpeech(phrase, {
       speaker: 'celeste',
       modelId: 'coda',
       language: 'en',

@@ -220,7 +220,7 @@
   <div class="page">
     <p class="eyebrow">Say It</p>
     <h1>Learn to say the tricky ones.</h1>
-    <p class="sub">Tap the mic and ask, like <em>"teach me refrigerator"</em> or <em>"teach me unicorn."</em> It'll say the word out loud, then slow it right down so you can hear every part.</p>
+    <p class="sub">Tap the mic and ask, like <em>"teach me refrigerator"</em> or <em>"teach me quokka."</em> It'll say the word out loud, then slow it right down so you can hear every part.</p>
 
     <div class="mic-wrap">
       <div class="mic-ring" id="micRing">
@@ -322,7 +322,7 @@
 
     async function handleQuery(spokenText) {
       setState('thinking');
-      statusEl.innerText = 'Finding phrase…';
+      statusEl.innerText = 'Finding word…';
 
       const myRequestId = currentRequestId;
       const controller = new AbortController();
@@ -346,21 +346,21 @@
       if (myRequestId !== currentRequestId) return;
 
       if (!resolveRes.ok) {
-        statusEl.innerText = "Didn't catch that one — tap and try again.";
+        statusEl.innerText = "Didn't catch a word — tap and try again.";
         setState('idle');
         if (conversationActive) startListening();
         return;
       }
 
-      const { phraseKey, english } = await resolveRes.json();
+      const { phrase } = await resolveRes.json();
       if (myRequestId !== currentRequestId) return;
 
-      phraseLabel.innerText = english;
+      phraseLabel.innerText = phrase;
 
-      await playSpeed(phraseKey, 'normal', 'Normal speed', myRequestId);
+      await playSpeed(phrase, 'normal', 'Normal speed', myRequestId);
       if (myRequestId !== currentRequestId) return;
 
-      await playSpeed(phraseKey, 'slow', 'Slow practice speed', myRequestId);
+      await playSpeed(phrase, 'slow', 'Slow practice speed', myRequestId);
       if (myRequestId !== currentRequestId) return;
 
       setState('idle');
@@ -368,7 +368,7 @@
       if (conversationActive) startListening();
     }
 
-    function playSpeed(phraseKey, speed, label, myRequestId) {
+    function playSpeed(phrase, speed, label, myRequestId) {
       return new Promise(async (resolve) => {
         statusEl.innerText = label + '…';
 
@@ -377,7 +377,7 @@
           res = await fetch('/api/speak-phrase', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phraseKey, speed }),
+            body: JSON.stringify({ phrase, speed }),
             signal: activeAbortController ? activeAbortController.signal : undefined
           });
         } catch (err) {
